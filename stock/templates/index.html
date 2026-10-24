@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price Prediction System | LSTM Deep Learning</title>
+    <meta name="description" content="AI-powered Indian stock price prediction and historical analysis using Long Short-Term Memory (LSTM) neural networks.">
+    
+    <!-- Google Fonts: Outfit & Inter for ultra-modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js for interactive time-series visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    
+    <!-- Custom Stylesheet (Mint Green & Teal Light Theme) -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- Main Application Wrapper -->
+    <div class="app-container">
+
+        <!-- Top Navigation Bar -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                        <polyline points="16 7 22 7 22 13"></polyline>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>NeuroStock <span class="brand-badge">LSTM</span></h1>
+                    <p class="brand-tagline">AI-Powered Indian Equity Forecasting</p>
+                </div>
+            </div>
+
+            <div class="header-meta">
+                <div class="market-pill">
+                    <span class="live-indicator"></span>
+                    <span class="market-label">NSE / BSE India</span>
+                </div>
+                <button id="guideBtn" class="btn-ghost" title="Learn how the LSTM model works">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>LSTM Guide</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Control Toolbar: Company Selection, Timeframe Filters, Actions -->
+        <section class="control-panel card">
+            <div class="control-group">
+                <label for="companySelect" class="control-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                    Select Company
+                </label>
+                <div class="select-wrapper">
+                    <select id="companySelect">
+                        <option value="TATAMOTORS" selected>Tata Motors (TMPV.NS / TATAMOTORS)</option>
+                        <option value="BHARTIARTL">Bharti Airtel (BHARTIARTL.NS)</option>
+                        <option value="SBIN">State Bank of India (SBIN.NS)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Historical Range
+                </label>
+                <div class="period-pills" id="periodPills">
+                    <button class="pill" data-period="1mo">1M</button>
+                    <button class="pill" data-period="6mo">6M</button>
+                    <button class="pill active" data-period="1y">1Y</button>
+                    <button class="pill" data-period="2y">2Y</button>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="predictBtn" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    <span>Run LSTM Prediction</span>
+                </button>
+                <button id="retrainBtn" class="btn btn-secondary" title="Retrain the deep learning model with latest data">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    <span>Retrain Model</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Key Market & Model Metric Cards Grid -->
+        <section class="metrics-grid">
+            <!-- Metric 1: Current Price -->
+            <div class="metric-card card">
+                <div class="metric-header">
+                    <span class="metric-title" id="stockNameDisplay">Tata Motors</span>
+                    <span class="ticker-badge" id="tickerBadge">TMPV.NS</span>
+                </div>
+                <div class="metric-body">
+                    <div class="metric-value-wrap">
+                        <span class="metric-currency">₹</span>
+                        <span class="metric-number" id="currentPriceDisplay">--</span>
+                    </div>
+                    <div class="price-change-pill" id="priceChangePill">
+                        <span id="priceChangeDisplay">--</span>
+                    </div>
+                </div>
+                <div class="metric-footer">
+                    <span class="footer-label">52W Range:</span>
+                    <span class="footer-value" id="range52wDisplay">-- - --</span>
+                </div>
+            </div>
+
+            <!-- Metric 2: Next Day Prediction -->
+            <div class="metric-card card highlight-card">
+                <div class="metric-header">
+                    <span class="metric-title">Next Trading Day Forecast</span>
+                    <span class="ai-badge">LSTM Model</span>
+                </div>
+                <div class="metric-body">
+                    <div class="metric-value-wrap">
+                        <span class="metric-currency">₹</span>
+                        <span class="metric-number" id="predictedPriceDisplay">--</span>
+                    </div>
+                    <div class="trend-pill" id="predictedTrendPill">
+                        <span id="predictedChangeDisplay">--</span>
+                    </div>
+                </div>
+                <div class="metric-footer">
+                    <span class="footer-label">Target Date:</span>
+                    <span class="footer-value" id="targetDateDisplay">--</span>
+                </div>
+            </div>
+
+            <!-- Metric 3: Model Accuracy / Error -->
+            <div class="metric-card card">
+                <div class="metric-header">
+                    <span class="metric-title">Model Evaluation (Test Set)</span>
+                    <span class="eval-badge">Unseen Data</span>
+                </div>
+                <div class="metric-body compact">
+                    <div class="stat-row">
+                        <span class="stat-label">Root Mean Sq Error (RMSE):</span>
+                        <span class="stat-value" id="rmseDisplay">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Absolute Error (MAE):</span>
+                        <span class="stat-value" id="maeDisplay">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Abs Percentage Error:</span>
+                        <span class="stat-value" id="mapeDisplay">--</span>
+                    </div>
+                </div>
+                <div class="metric-footer">
+                    <span class="footer-label">Lookback Window:</span>
+                    <span class="footer-value">60 Trading Days</span>
+                </div>
+            </div>
+
+            <!-- Metric 4: Directional Trend & Sample Count -->
+            <div class="metric-card card">
+                <div class="metric-header">
+                    <span class="metric-title">Directional Accuracy</span>
+                    <span class="eval-badge">Trend Fit</span>
+                </div>
+                <div class="metric-body">
+                    <div class="metric-value-wrap">
+                        <span class="metric-number" id="accuracyDisplay">--%</span>
+                    </div>
+                    <div class="accuracy-tag" id="accuracyQuality">Reliable Trend</div>
+                </div>
+                <div class="metric-footer">
+                    <span class="footer-label">Chronological Split:</span>
+                    <span class="footer-value">80% Train / 20% Test</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Chart Section with Multi-View Tabs -->
+        <section class="chart-section card">
+            <div class="chart-header">
+                <div class="chart-title-area">
+                    <h2 class="chart-heading" id="chartHeading">Stock Price Trajectory & LSTM Forecast</h2>
+                    <p class="chart-subheading" id="chartSubheading">Visualizing historical closing prices connected to recursive future estimates.</p>
+                </div>
+                <div class="chart-tabs" id="chartTabs">
+                    <button class="chart-tab active" data-tab="forecast">Forecast & History</button>
+                    <button class="chart-tab" data-tab="validation">Model Validation (Actual vs Pred)</button>
+                    <button class="chart-tab" data-tab="historical">Historical Prices Only</button>
+                </div>
+            </div>
+
+            <!-- Chart Canvas Container -->
+            <div class="chart-wrapper">
+                <canvas id="stockChart"></canvas>
+                <!-- Loading Overlay -->
+                <div id="chartLoader" class="chart-loader hidden">
+                    <div class="spinner"></div>
+                    <p class="loader-text" id="loaderStatus">Fetching market data from Yahoo Finance...</p>
+                    <div class="loader-sub">Preparing 60-day lookback sequences & evaluating model</div>
+                </div>
+            </div>
+
+            <div class="chart-legend-custom" id="customLegend">
+                <!-- Dynamically populated legend badges -->
+            </div>
+        </section>
+
+        <!-- Multi-Day Future Forecast Cards (Next 7 Trading Days) -->
+        <section class="forecast-deck card">
+            <div class="deck-header">
+                <div>
+                    <h3 class="deck-title">7-Day Forward Price Projections</h3>
+                    <p class="deck-subtitle">Step-by-step recursive forecasts with error-adjusted confidence bands.</p>
+                </div>
+                <span class="forecast-count-badge">Next 7 Trading Days</span>
+            </div>
+            <div class="forecast-cards-container" id="forecastCardsContainer">
+                <!-- Populated dynamically via JS -->
+                <div class="empty-state">Click "Run LSTM Prediction" to generate 7-day estimates.</div>
+            </div>
+        </section>
+
+        <!-- Educational Section: How LSTM Works (Suitable for Engineering Students & Beginners) -->
+        <section class="guide-section card">
+            <div class="guide-header">
+                <div class="guide-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="guide-title">How This LSTM Stock Predictor Works (Engineering Architecture)</h3>
+                    <p class="guide-subtitle">A clear breakdown of the data science and deep learning workflow.</p>
+                </div>
+            </div>
+
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-num">01</div>
+                    <h4 class="step-title">Chronological Splitting</h4>
+                    <p class="step-desc">Time-series data cannot be randomly shuffled because future prices depend on past sequence order. We allocate the first 80% of dates for training and the most recent 20% strictly for testing.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">02</div>
+                    <h4 class="step-title">No Data Leakage</h4>
+                    <p class="step-desc">The <code>MinMaxScaler</code> is fitted <strong>only</strong> on the training dataset. The test set and future inputs are transformed using the train-scaler parameters, strictly preventing future information leakage.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">03</div>
+                    <h4 class="step-title">60-Day Lookback Window</h4>
+                    <p class="step-desc">Every input sequence contains 60 consecutive trading days $X_t = [P_{t-60}, \dots, P_{t-1}]$ to predict the next day's price $y_t = P_t$. This captures momentum, quarterly earnings trends, and volatility.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">04</div>
+                    <h4 class="step-title">2-Layer Stacked LSTM</h4>
+                    <p class="step-desc">Two LSTM layers (50 units each) with Dropout (20%) prevent overfitting. Memory cells and forget gates retain long-term market trends while filtering transient day-to-day noise.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mandatory Financial Disclaimer -->
+        <footer class="app-disclaimer card">
+            <div class="disclaimer-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <div class="disclaimer-content">
+                <strong>Important Disclaimer & Educational Notice:</strong>
+                <p>Stock market prices are influenced by countless macroeconomic, geopolitical, and sentiment factors that historical price data alone cannot fully predict. All price estimates displayed on this platform are computational approximations generated by an experimental Long Short-Term Memory (LSTM) machine learning model for academic and demonstration purposes only. <strong>This does not constitute financial, investment, or trading advice.</strong> Always consult a SEBI-registered financial advisor before making financial decisions.</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Toast Notification Container for Errors and Alerts -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Application Script -->
+    <script src="/static/script.js"></script>
+</body>
+</html>
